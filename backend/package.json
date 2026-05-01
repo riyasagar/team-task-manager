@@ -5,9 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "build": "node scripts/build-frontend.js",
-    "build:start": "npm run build && npm start"
+    "dev": "nodemon src/server.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
