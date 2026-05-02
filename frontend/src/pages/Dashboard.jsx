@@ -1,73 +1,70 @@
-import { useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import api from "../api/axios";
-import { useAuth } from "../context/AuthContext";
 
-export default function Dashboard() {
-  const { user } = useAuth();
+const AuthContext = createContext(null);
 
-  const [projects, setProjects] = useState([]);
-  const [allTasks, setAllTasks] = useState([]);
-  const [myAssignedTasks, setMyAssignedTasks] = useState([]);
-  const [overdue, setOverdue] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+const TOKEN_KEY = "ttm_token";
+const USER_KEY = "ttm_user";
 
-  const load = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      const [pRes, tRes, aRes, oRes] = await Promise.all([
-        api.get("/projects/my"),
-        api.get("/tasks/my"),
-        api.get("/tasks/my-assigned"),
-        api.get("/tasks/overdue"),
-      ]);
+function safeJsonParse(value) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
 
-      // ✅ FIX
-      setProjects(Array.isArray(pRes.data) ? pRes.data : []);
-      setAllTasks(Array.isArray(tRes.data) ? tRes.data : []);
-      setMyAssignedTasks(Array.isArray(aRes.data) ? aRes.data : []);
-      setOverdue(Array.isArray(oRes.data) ? oRes.data : []);
-    } catch (err) {
-      setError(err?.response?.data?.message || "Failed to load dashboard");
-    } finally {
-      setLoading(false);
-    }
-  };
+export function AuthProvider({ children }) {
+  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
+  const [user, setUser] = useState(() => safeJsonParse(localStorage.getItem(USER_KEY)));
 
   useEffect(() => {
-    load();
-  }, []);
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  }, [token]);
 
-  // ✅ FIXED
-  const stats = useMemo(() => {
-    if (!Array.isArray(allTasks)) {
-      return { total: 0, Todo: 0, "In Progress": 0, Done: 0 };
-    }
+  useEffect(() => {
+    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+    else localStorage.removeItem(USER_KEY);
+  }, [user]);
 
-    const byStatus = { Todo: 0, "In Progress": 0, Done: 0 };
+  // ❗ No /api here
+  const signup = async ({ name, email, password, role }) => {
+    const res = await api.post("/auth/signup", { name, email, password, role });
+    setToken(res.data.token);
+    setUser(res.data.user);
+    return res.data;
+  };
 
-    allTasks.forEach((t) => {
-      if (byStatus[t.status] !== undefined) byStatus[t.status]++;
-    });
+  const login = async ({ email, password }) => {
+    const res = await api.post("/auth/login", { email, password });
+    setToken(res.data.token);
+    setUser(res.data.user);
+    return res.data;
+  };
 
-    return {
-      total: allTasks.length,
-      ...byStatus,
-    };
-  }, [allTasks]);
+  const logout = () => {
+    setToken("");
+    setUser(null);
+  };
 
-  return (
-    <div>
-      <h2>Dashboard</h2>
-
-      {loading && <p>Loading...</p>}
-      {error && <p>{error}</p>}
-
-      <p>Total Tasks: {stats.total}</p>
-      <p>Todo: {stats.Todo}</p>
-      <p>In Progress: {stats["In Progress"]}</p>
-      <p>Done: {stats.Done}</p>
-    </div>
+  const value = useMemo(
+    () => ({
+      token,
+      user,
+      isAuthenticated: Boolean(token),
+      signup,
+      login,
+      logout,
+    }),
+    [token, user]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }

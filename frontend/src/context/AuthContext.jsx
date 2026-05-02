@@ -18,37 +18,26 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
   const [user, setUser] = useState(() => safeJsonParse(localStorage.getItem(USER_KEY)));
 
-  // Save token
   useEffect(() => {
     if (token) localStorage.setItem(TOKEN_KEY, token);
     else localStorage.removeItem(TOKEN_KEY);
   }, [token]);
 
-  // Save user
   useEffect(() => {
     if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
     else localStorage.removeItem(USER_KEY);
   }, [user]);
 
-  // ✅ FIXED: Removed extra /api
+  // ❗ No /api here
   const signup = async ({ name, email, password, role }) => {
-    const res = await api.post("/auth/signup", {
-      name,
-      email,
-      password,
-      role,
-    });
+    const res = await api.post("/auth/signup", { name, email, password, role });
     setToken(res.data.token);
     setUser(res.data.user);
     return res.data;
   };
 
-  // ✅ FIXED: Removed extra /api
   const login = async ({ email, password }) => {
-    const res = await api.post("/auth/login", {
-      email,
-      password,
-    });
+    const res = await api.post("/auth/login", { email, password });
     setToken(res.data.token);
     setUser(res.data.user);
     return res.data;
@@ -79,4 +68,3 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
-

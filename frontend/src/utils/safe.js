@@ -1,0 +1,1 @@
+export const toArray = (v) => (Array.isArray(v) ? v : []);
